@@ -1,0 +1,13 @@
+# Directories
+base/
+out/
+in/
+data/
+build/
+report/ 
+plot/ 
+
+# Files
+compile_commands.json
+paper.pdf
+
