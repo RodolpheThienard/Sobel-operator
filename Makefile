@@ -10,13 +10,13 @@ BIN=$(BUILD)/bin
 SRC=src
 INCLUDE=-I include
 
-all: $(BIN)/sobel_opt
+all: $(BIN)/sobel_opt $(BIN)/sobel
 
 $(BIN)/sobel_opt: $(SRC)/sobel_opt.c
 	$(CC) -DBASELINE=1 $(CFLAGS) $(INCLUDE) $(OFLAGS) $< src/common.c -o $@ -lm
 	
 $(BIN)/sobel: $(SRC)/sobel.c
-	$(CC) -DBASELINE=1 $(CFLAGS) $(INCLUDE) $(UNOPTI_OFLAGS) $< common.c -o $@ -lm
+	$(CC) -DBASELINE=1 $(CFLAGS) $(INCLUDE) $(UNOPTI_OFLAGS) $< src/common.c -o $@ -lm
 
 clean:
 	rm -Rf *~ sobel
