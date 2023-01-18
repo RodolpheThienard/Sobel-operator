@@ -7,35 +7,33 @@
 #include "kernel.h"
 
 #if SQRT | BASELINE
-	
-	void grayscale_weighted(u8* restrict frame)
-	{
-		f32 gray;
-		for (u64 i = 0; i < H * W * 3; i += 3) {
-			gray = ((float)frame[i] * 0.299) +
-			       ((float)frame[i + 1] * 0.587) +
-			       ((float)frame[i + 2] * 0.114);
-			frame[i] = gray;
-			frame[i+1] = gray;
-			frame[i+2] = gray;
-		
-		}
-	}	
 
-#else 
-	void grayscale_weighted(u8* restrict frame)
-	{
-		f32 gray;
-		for (u64 i = 0; i < H * W * 3; i += 3) {
-			gray = ((float)frame[i] * 0.299) +
-			       ((float)frame[i + 1] * 0.587) +
-			       ((float)frame[i + 2] * 0.114);
-			frame[i/3] = gray;
-		}
+void grayscale_weighted(u8 *restrict frame)
+{
+	f32 gray;
+	for (u64 i = 0; i < H * W * 3; i += 3) {
+		gray = ((float)frame[i] * 0.299) +
+		       ((float)frame[i + 1] * 0.587) +
+		       ((float)frame[i + 2] * 0.114);
+		frame[i] = gray;
+		frame[i + 1] = gray;
+		frame[i + 2] = gray;
 	}
+}
+
+#else
+void grayscale_weighted(u8 *restrict frame)
+{
+	f32 gray;
+	for (u64 i = 0; i < H * W * 3; i += 3) {
+		gray = ((float)frame[i] * 0.299) +
+		       ((float)frame[i + 1] * 0.587) +
+		       ((float)frame[i + 2] * 0.114);
+		frame[i / 3] = gray;
+	}
+}
 #endif
 //Convert an image to its grayscale equivalent - better color precision
-
 
 //
 int main(int argc, char **argv)
@@ -156,9 +154,8 @@ int main(int argc, char **argv)
 	mib_per_s = ((f64)(size << 1) / (1024.0 * 1024.0)) / elapsed_s;
 
 	//
-	printf("%s; %20llu bytes;  %15.3lf MiB/s; %15.3lf %%;\n",
-	       argv[3],(sizeof(u8) * H * W * 3) << 1, mib_per_s,
-	       (dev * 100.0 / mea));
+	printf("%s; %20llu bytes;  %15.3lf MiB/s; %15.3lf %%;\n", argv[3],
+	       (sizeof(u8) * H * W * 3) << 1, mib_per_s, (dev * 100.0 / mea));
 
 	//
 	_mm_free(cframe);
@@ -168,10 +165,10 @@ int main(int argc, char **argv)
 	fclose(fpi);
 	fclose(fpo);
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-	
+
 	// printf("Total time : %lf, SpeedUp : %lf\n",
-	       // (end.tv_nsec - begin.tv_nsec) * 1e-9 +
-		       // (end.tv_sec - begin.tv_sec),
-	       // (mib_per_s / 160));
-		return 0;
+	// (end.tv_nsec - begin.tv_nsec) * 1e-9 +
+	// (end.tv_sec - begin.tv_sec),
+	// (mib_per_s / 160));
+	return 0;
 }
