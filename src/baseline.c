@@ -6,13 +6,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <immintrin.h>
-#include <cblas.h>
 
 //
 #include "common.h"
 
 //Convert an image to its grayscale equivalent - better color precision
-void grayscale_weighted(u8 *restrict frame)
+void grayscale_weighted(u8 *frame)
 {
 	f32 gray;
 
@@ -24,52 +23,65 @@ void grayscale_weighted(u8 *restrict frame)
 		       ((float)frame[i + 1] * 0.587) +
 		       ((float)frame[i + 2] * 0.114);
 
-		frame[i / 3] = gray;
-		// frame[i + 1] = gray;
-		// frame[i + 2] = gray;
+		frame[i] = gray;
+		frame[i + 1] = gray;
+		frame[i + 2] = gray;
+	}
+}
+
+//Convert an image to its grayscale equivalent - bad color precision
+void grayscale_sampled(u8 *frame)
+{
+	for (u64 i = 0; i < H * W * 3; i += 3) {
+		//R: light gray
+		//G: medium gray
+		//B: dark gray
+		u8 gray = frame[i];
+
+		frame[i] = gray;
+		frame[i + 1] = gray;
+		frame[i + 2] = gray;
 	}
 }
 
 //
-void sobel_baseline(u8 *restrict cframe, u8 *restrict oframe, f32 threshold)
+i32 convolve_baseline(u8 *m, i32 *f, u64 fh, u64 fw)
 {
-	i16 gx, gy;
+	i32 r = 0;
+	for (u64 i = 0; i < fh; i++)
+		for (u64 j = 0; j < fw; j++)
+			r += m[INDEX(i, j, W * 3)] * f[INDEX(i, j, fw)];
+	return r;
+}
+
+//
+void sobel_baseline(u8 *cframe, u8 *oframe, f32 threshold)
+{
+	i32 gx, gy;
 	f32 mag = 0.0;
 
-	i8 f1[9] = { -1, 0, 1, -2, 0, 2, -1, 0, 1 }; //3x3 matrix
+	i32 f1[9] = { -1, 0, 1, -2, 0, 2, -1, 0, 1 }; //3x3 matrix
 
-	i8 f2[9] = { -1, -2, -1, 0, 0, 0, 1, 2, 1 }; //3x3 matrix
+	i32 f2[9] = { -1, -2, -1, 0, 0, 0, 1, 2, 1 }; //3x3 matrix
 
 	//
 	for (u64 i = 0; i < (H - 3); i++)
-		for (u64 j = 0; j < (W - 3); j++) {
-			gx = 0;
-			gy = 0;
-			u8 *m = &cframe[INDEX(i, j, W)];
+		for (u64 j = 0; j < ((W * 3) - 3); j++) {
+			gx = convolve_baseline(&cframe[INDEX(i, j, W * 3)], f1,
+					       3, 3);
+			gy = convolve_baseline(&cframe[INDEX(i, j, W * 3)], f2,
+					       3, 3);
 
-			// Convolve
-			for (u8 ii = 0; ii < 3; ii++) {
-				gx += m[INDEX(ii, 0, W)] * f1[INDEX(ii, 0, 3)];
-				gx += m[INDEX(ii, 1, W)] * f1[INDEX(ii, 1, 3)];
-				gx += m[INDEX(ii, 2, W)] * f1[INDEX(ii, 2, 3)];
+			mag = sqrt((gx * gx) + (gy * gy));
 
-				gy += m[INDEX(ii, 0, W)] * f2[INDEX(ii, 0, 3)];
-				gy += m[INDEX(ii, 1, W)] * f2[INDEX(ii, 1, 3)];
-				gy += m[INDEX(ii, 2, W)] * f2[INDEX(ii, 2, 3)];
-			}
-
-			u8 bool = ((gx * gx) + (gy * gy) > threshold) ? 255 : 0;
-			oframe[INDEX(i, j * 3, W * 3)] = bool;
-			oframe[INDEX(i, j * 3 + 1, W * 3)] = bool;
-			oframe[INDEX(i, j * 3 + 2, W * 3)] = bool;
+			oframe[INDEX(i, j, W * 3)] = (mag > threshold) ? 255 :
+									 mag;
 		}
 }
 
 //
 int main(int argc, char **argv)
 {
-	struct timespec begin, end;
-	clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
 	//
 	if (argc < 3)
 		return printf("Usage: %s [raw input file] [raw output file]\n",
@@ -103,10 +115,12 @@ int main(int argc, char **argv)
 	//
 	if (!fpo)
 		return printf("Error: cannot open file '%s'\n", argv[2]), 2;
-	int n = 0;
+
 	//Read & process video frames
 	while ((nb_bytes = fread(cframe, sizeof(u8), H * W * 3, fpi))) {
+		//
 		grayscale_weighted(cframe);
+
 		do {
 			//Start
 			clock_gettime(CLOCK_MONOTONIC_RAW, &t1);
@@ -114,7 +128,7 @@ int main(int argc, char **argv)
 			//Put other versions here
 
 #if BASELINE
-			sobel_baseline(cframe, oframe, 10000.0);
+			sobel_baseline(cframe, oframe, 100.0);
 #endif
 			//Stop
 			clock_gettime(CLOCK_MONOTONIC_RAW, &t2);
@@ -125,7 +139,7 @@ int main(int argc, char **argv)
 		} while (elapsed_ns <= 0.0);
 
 		//Seconds
-		elapsed_s = elapsed_ns * 1e-9;
+		elapsed_s = elapsed_ns / 1e9;
 
 		//2 arrays
 		mib_per_s =
@@ -139,7 +153,6 @@ int main(int argc, char **argv)
 		// fprintf(stdout, "%20llu; %20llu bytes; %15.3lf ns; %15.3lf MiB/s\n", frame_count, nb_bytes << 1, elapsed_ns, mib_per_s);
 
 		// Write this frame to the output pipe
-
 		fwrite(oframe, sizeof(u8), H * W * 3, fpo);
 
 		//
@@ -168,6 +181,9 @@ int main(int argc, char **argv)
 	mib_per_s = ((f64)(size << 1) / (1024.0 * 1024.0)) / elapsed_s;
 
 	//
+	printf("%20llu bytes; %15.3lf ns; %15.3lf ns; %15.3lf ns; %15.3lf MiB/s; %15.3lf %%;\n",
+	       (sizeof(u8) * H * W * 3) << 1, min, max, mea, mib_per_s,
+	       (dev * 100.0 / mea));
 
 	//
 	_mm_free(cframe);
@@ -177,13 +193,5 @@ int main(int argc, char **argv)
 	fclose(fpi);
 	fclose(fpo);
 
-	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
-	printf("%20llu bytes; %15.3lf ns; %15.3lf ns; %15.3lf ns; %15.3lf MiB/s; %15.3lf %%;\n",
-	       (sizeof(u8) * H * W * 3) << 1, min, max, mea, mib_per_s,
-	       (dev * 100.0 / mea));
-	printf("Total time : %lf, SpeedUp : %lf\n",
-	       (end.tv_nsec - begin.tv_nsec) * 1e-9 +
-		       (end.tv_sec - begin.tv_sec),
-	       (mib_per_s / 160));
 	return 0;
 }

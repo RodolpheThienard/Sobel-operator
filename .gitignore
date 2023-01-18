@@ -6,6 +6,7 @@ data/
 build/
 report/ 
 plot/ 
+maqao/
 
 # Files
 compile_commands.json

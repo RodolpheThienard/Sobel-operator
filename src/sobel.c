@@ -9,80 +9,27 @@
 
 //
 #include "common.h"
+#include "kernel.h"
 
 //Convert an image to its grayscale equivalent - better color precision
-void grayscale_weighted(u8 *frame)
+void grayscale_weighted(u8* restrict frame)
 {
 	f32 gray;
-
 	for (u64 i = 0; i < H * W * 3; i += 3) {
-		//Convert RGB color values into grayscale for each pixel using color weights
-		//Other possible weights: 0.59, 0.30, 0.11
-		//Principle: mix different quantities of R, G, B to create a variant of gray
 		gray = ((float)frame[i] * 0.299) +
 		       ((float)frame[i + 1] * 0.587) +
 		       ((float)frame[i + 2] * 0.114);
-
-		frame[i] = gray;
-		frame[i + 1] = gray;
-		frame[i + 2] = gray;
+		frame[i/3] = gray;
+		
 	}
-}
-
-//Convert an image to its grayscale equivalent - bad color precision
-void grayscale_sampled(u8 *frame)
-{
-	for (u64 i = 0; i < H * W * 3; i += 3) {
-		//R: light gray
-		//G: medium gray
-		//B: dark gray
-		u8 gray = frame[i];
-
-		frame[i] = gray;
-		frame[i + 1] = gray;
-		frame[i + 2] = gray;
-	}
-}
-
-//
-i32 convolve_baseline(u8 *m, i32 *f, u64 fh, u64 fw)
-{
-	i32 r = 0;
-	for (u64 i = 0; i < fh; i++)
-		for (u64 j = 0; j < fw; j++)
-			r += m[INDEX(i, j, W * 3)] * f[INDEX(i, j, fw)];
-	return r;
-}
-
-//
-void sobel_baseline(u8 *cframe, u8 *oframe, f32 threshold)
-{
-	i32 gx, gy;
-	f32 mag = 0.0;
-
-	i32 f1[9] = { -1, 0, 1, -2, 0, 2, -1, 0, 1 }; //3x3 matrix
-
-	i32 f2[9] = { -1, -2, -1, 0, 0, 0, 1, 2, 1 }; //3x3 matrix
-
-	//
-	for (u64 i = 0; i < (H - 3); i++)
-		for (u64 j = 0; j < ((W * 3) - 3); j++) {
-			gx = convolve_baseline(&cframe[INDEX(i, j, W * 3)], f1,
-					       3, 3);
-			gy = convolve_baseline(&cframe[INDEX(i, j, W * 3)], f2,
-					       3, 3);
-
-			mag = sqrt((gx * gx) + (gy * gy));
-
-			oframe[INDEX(i, j, W * 3)] = (mag > threshold) ? 255 :
-									 mag;
-		}
 }
 
 //
 int main(int argc, char **argv)
 {
 	//
+	struct timespec begin, end;
+	clock_gettime(CLOCK_MONOTONIC_RAW, &begin);
 	if (argc < 3)
 		return printf("Usage: %s [raw input file] [raw output file]\n",
 			      argv[0]),
@@ -128,9 +75,10 @@ int main(int argc, char **argv)
 			//Put other versions here
 
 #if BASELINE
-			sobel_baseline(cframe, oframe, 100.0);
+			sobel_3(cframe, oframe, 10000.0);
 #endif
 			//Stop
+			struct timespec begin, end;
 			clock_gettime(CLOCK_MONOTONIC_RAW, &t2);
 
 			//Nano seconds
@@ -181,8 +129,8 @@ int main(int argc, char **argv)
 	mib_per_s = ((f64)(size << 1) / (1024.0 * 1024.0)) / elapsed_s;
 
 	//
-	printf("%20llu bytes; %15.3lf ns; %15.3lf ns; %15.3lf ns; %15.3lf MiB/s; %15.3lf %%;\n",
-	       (sizeof(u8) * H * W * 3) << 1, min, max, mea, mib_per_s,
+	printf("%20llu bytes;  %15.3lf MiB/s; %15.3lf %%;\n",
+	       (sizeof(u8) * H * W * 3) << 1, mib_per_s,
 	       (dev * 100.0 / mea));
 
 	//
@@ -192,6 +140,11 @@ int main(int argc, char **argv)
 	//
 	fclose(fpi);
 	fclose(fpo);
-
-	return 0;
+	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
+	
+	printf("Total time : %lf, SpeedUp : %lf\n",
+	       (end.tv_nsec - begin.tv_nsec) * 1e-9 +
+		       (end.tv_sec - begin.tv_sec),
+	       (mib_per_s / 160));
+		return 0;
 }
