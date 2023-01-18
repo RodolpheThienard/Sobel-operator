@@ -1,28 +1,41 @@
 /*
   This code performs edge detection using a Sobel filter on a video stream meant as input to a neural network
 */
-#include <time.h>
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <immintrin.h>
 
 //
 #include "common.h"
 #include "kernel.h"
 
-//Convert an image to its grayscale equivalent - better color precision
-void grayscale_weighted(u8* restrict frame)
-{
-	f32 gray;
-	for (u64 i = 0; i < H * W * 3; i += 3) {
-		gray = ((float)frame[i] * 0.299) +
-		       ((float)frame[i + 1] * 0.587) +
-		       ((float)frame[i + 2] * 0.114);
-		frame[i/3] = gray;
+#if SQRT | BASELINE
+	
+	void grayscale_weighted(u8* restrict frame)
+	{
+		f32 gray;
+		for (u64 i = 0; i < H * W * 3; i += 3) {
+			gray = ((float)frame[i] * 0.299) +
+			       ((float)frame[i + 1] * 0.587) +
+			       ((float)frame[i + 2] * 0.114);
+			frame[i] = gray;
+			frame[i+1] = gray;
+			frame[i+2] = gray;
 		
+		}
+	}	
+
+#else 
+	void grayscale_weighted(u8* restrict frame)
+	{
+		f32 gray;
+		for (u64 i = 0; i < H * W * 3; i += 3) {
+			gray = ((float)frame[i] * 0.299) +
+			       ((float)frame[i + 1] * 0.587) +
+			       ((float)frame[i + 2] * 0.114);
+			frame[i/3] = gray;
+		}
 	}
-}
+#endif
+//Convert an image to its grayscale equivalent - better color precision
+
 
 //
 int main(int argc, char **argv)
@@ -75,10 +88,24 @@ int main(int argc, char **argv)
 			//Put other versions here
 
 #if BASELINE
+			sobel_baseline(cframe, oframe, 100.0);
+#endif
+#if SOBEL3
 			sobel_3(cframe, oframe, 10000.0);
 #endif
+#if SOBEL7
+			sobel_7(cframe, oframe, 10000.0);
+#endif
+#if SQRT
+			sobel_sqrt(cframe, oframe, 10000.0);
+#endif
+#if PIXEL
+			sobel_pixel(cframe, oframe, 100.0);
+#endif
+#if PIXELSQRT
+			sobel_pixelsqrt(cframe, oframe, 10000.0);
+#endif
 			//Stop
-			struct timespec begin, end;
 			clock_gettime(CLOCK_MONOTONIC_RAW, &t2);
 
 			//Nano seconds

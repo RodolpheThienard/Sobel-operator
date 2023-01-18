@@ -24,4 +24,4 @@ $(BIN)/sobel: $(SRC)/sobel.c
 endif
 
 clean:
-	rm -Rf *~ sobel
+	$(RM) build/bin/*

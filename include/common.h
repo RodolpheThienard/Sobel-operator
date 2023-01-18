@@ -1,3 +1,9 @@
+#include <time.h>
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <immintrin.h>
+
 //Resolution
 #define W 1280 //Width
 #define H 720 //Height
