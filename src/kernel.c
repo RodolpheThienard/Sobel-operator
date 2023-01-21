@@ -38,7 +38,6 @@ void sobel_baseline(u8 *cframe, u8 *oframe, f32 threshold)
 void sobel_3(u8 *restrict cframe, u8 *restrict oframe, f32 threshold)
 {
 	i16 gx, gy;
-	f32 mag = 0.0;
 
 	i8 f1[9] = { -1, 0, 1, -2, 0, 2, -1, 0, 1 }; //3x3 matrix
 
@@ -60,7 +59,6 @@ void sobel_3(u8 *restrict cframe, u8 *restrict oframe, f32 threshold)
 				gy += m[INDEX(2, ii, W)] * f2[INDEX(2, ii, 3)];
 			}
 
-			// mag = sqrt((gx * gx) + (gy * gy));
 			u8 gray = ((gx * gx) + (gy * gy) > threshold) ? 255 : 0;
 			oframe[INDEX(i, j * 3, W * 3)] = gray;
 			oframe[INDEX(i, j * 3 + 1, W * 3)] = gray;
@@ -72,7 +70,6 @@ void sobel_3(u8 *restrict cframe, u8 *restrict oframe, f32 threshold)
 void sobel_7(u8 *restrict cframe, u8 *restrict oframe, f32 threshold)
 {
 	i16 gx, gy;
-	f32 mag = 0.0;
 
 	i8 f1[9] = { -1, 0, 1, -2, 0, 2, -1, 0, 1 }; //3x3 matrix
 
@@ -98,7 +95,6 @@ void sobel_7(u8 *restrict cframe, u8 *restrict oframe, f32 threshold)
 				      f2[INDEX(2, ii, 3)];
 			}
 
-			// mag = sqrt((gx * gx) + (gy * gy));
 			u8 gray = ((gx * gx) + (gy * gy) > threshold) ? 255 : 0;
 			oframe[INDEX(i, j * 3, W * 3)] = gray;
 			oframe[INDEX(i, j * 3 + 1, W * 3)] = gray;
@@ -109,7 +105,6 @@ void sobel_7(u8 *restrict cframe, u8 *restrict oframe, f32 threshold)
 void sobel_pixel(u8 *restrict cframe, u8 *restrict oframe, f32 threshold)
 {
 	i32 gx, gy;
-	f32 mag = 0.0;
 
 	i32 f1[9] = { -1, 0, 1, -2, 0, 2, -1, 0, 1 }; //3x3 matrix
 
@@ -135,7 +130,6 @@ void sobel_pixel(u8 *restrict cframe, u8 *restrict oframe, f32 threshold)
 				      f2[INDEX(2, ii, 3)];
 			}
 
-			// mag = sqrt((gx * gx) + (gy * gy));
 			u8 gray = (sqrt((gx * gx) + (gy * gy)) > threshold) ?
 					  255 :
 					  0;
@@ -148,7 +142,7 @@ void sobel_pixel(u8 *restrict cframe, u8 *restrict oframe, f32 threshold)
 void sobel_sqrt(u8 *cframe, u8 *oframe, f32 threshold)
 {
 	i32 gx, gy;
-	f32 mag = 0.0;
+	u32 mag = 0.0;
 
 	i32 f1[9] = { -1, 0, 1, -2, 0, 2, -1, 0, 1 }; //3x3 matrix
 
@@ -172,7 +166,6 @@ void sobel_sqrt(u8 *cframe, u8 *oframe, f32 threshold)
 void sobel_pixelsqrt(u8 *restrict cframe, u8 *restrict oframe, f32 threshold)
 {
 	i32 gx, gy;
-	f32 mag = 0.0;
 
 	i32 f1[9] = { -1, 0, 1, -2, 0, 2, -1, 0, 1 }; //3x3 matrix
 

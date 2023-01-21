@@ -5,6 +5,13 @@
 //
 #include "common.h"
 #include "kernel.h"
+#include <pthread.h>
+
+struct arguments {
+	u8 *cframe;
+	u8 *oframe;
+	i32 tol;
+};
 
 #if SQRT | BASELINE
 
@@ -35,6 +42,13 @@ void grayscale_weighted(u8 *restrict frame)
 #endif
 //Convert an image to its grayscale equivalent - better color precision
 
+void *threaded_function(void *args)
+{
+	struct arguments *argument = (struct arguments *)args;
+	sobel_7((*argument).cframe, (*argument).oframe, (*argument).tol);
+	return NULL;
+}
+
 //
 int main(int argc, char **argv)
 {
@@ -59,8 +73,8 @@ int main(int argc, char **argv)
 	u64 nb_bytes = 1, frame_count = 0, samples_count = 0;
 
 	//
-	u8 *cframe = _mm_malloc(size, 32);
-	u8 *oframe = _mm_malloc(size, 32);
+	u8 *cframe = aligned_alloc(32, size);
+	u8 *oframe = aligned_alloc(32, size);
 
 	//
 	FILE *fpi = fopen(argv[1], "rb");
@@ -75,6 +89,14 @@ int main(int argc, char **argv)
 		return printf("Error: cannot open file '%s'\n", argv[2]), 2;
 
 	//Read & process video frames
+
+	u64 i;
+	// nb_bytes = fread(cframe, sizeof(u8), H * W * 3*360, fpi);
+	// #pragma omp parallel for
+	// for(i = 0; i < 360; i++){
+	// printf("%llu\n", i);
+	// nb_bytes = fread(cframe, sizeof(u8), H * W * 3, fpi);
+	// }
 	while ((nb_bytes = fread(cframe, sizeof(u8), H * W * 3, fpi))) {
 		//
 		grayscale_weighted(cframe);
@@ -103,6 +125,12 @@ int main(int argc, char **argv)
 #if PIXELSQRT
 			sobel_pixelsqrt(cframe, oframe, 10000.0);
 #endif
+#if OMP
+			sobel_omp(cframe, oframe, 10000.0);
+#endif
+#if THREAD
+			sobel_3(cframe, oframe, 10000.0);
+#endif
 			//Stop
 			clock_gettime(CLOCK_MONOTONIC_RAW, &t2);
 
@@ -126,12 +154,16 @@ int main(int argc, char **argv)
 		// fprintf(stdout, "%20llu; %20llu bytes; %15.3lf ns; %15.3lf MiB/s\n", frame_count, nb_bytes << 1, elapsed_ns, mib_per_s);
 
 		// Write this frame to the output pipe
+		// #pragma omp critical
+		// {
 		fwrite(oframe, sizeof(u8), H * W * 3, fpo);
+		// }
 
 		//
 		frame_count++;
 	}
 
+	// fwrite(oframe, sizeof(u8), H * W * 3*360, fpo);
 	//
 	sort(samples, samples_count);
 
@@ -154,8 +186,9 @@ int main(int argc, char **argv)
 	mib_per_s = ((f64)(size << 1) / (1024.0 * 1024.0)) / elapsed_s;
 
 	//
-	printf("%s; %20llu bytes;  %15.3lf MiB/s; %15.3lf %%;\n", argv[3],
-	       (sizeof(u8) * H * W * 3) << 1, mib_per_s, (dev * 100.0 / mea));
+	// printf("%s; %20llu bytes;  %15.3lf MiB/s; %15.3lf %%;\n",
+	// argv[3],(sizeof(u8) * H * W * 3) << 1, mib_per_s,
+	// (dev * 100.0 / mea));
 
 	//
 	_mm_free(cframe);
@@ -166,9 +199,10 @@ int main(int argc, char **argv)
 	fclose(fpo);
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end);
 
-	printf("Total time : %lf, SpeedUp : %lf\n",
+	printf("%s; %lf; %lf; SpeedUp : %lf\n", argv[3],
 	       (end.tv_nsec - begin.tv_nsec) * 1e-9 +
 		       (end.tv_sec - begin.tv_sec),
+	       (t2.tv_nsec - t1.tv_nsec) + ((t2.tv_sec - t1.tv_sec) * 1e9),
 	       (mib_per_s / 160));
 	return 0;
 }

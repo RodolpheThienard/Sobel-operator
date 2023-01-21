@@ -45,6 +45,10 @@ do
     # echo "$compiler and $version"
     make -B CC=$compiler DEFINE=$version
     ./build/bin/sobel in/input.raw out/output.raw $version >> data/$compiler.dat
+    ./build/bin/elapsed_time in/input.raw out/output.raw $version >> data/elapsed_$compiler.dat
+    ./build/bin/aligned in/input.raw out/output.raw $version >> data/aligned_$compiler.dat
+    ./build/bin/malloc in/input.raw out/output.raw $version >> data/malloc_$compiler.dat
+    
   done
 done
 
